@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guitar Hero - Maquette Commerciale</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui">
+            <div id="score-box">SCORE: <span id="score">0</span></div>
+            <div id="combo-box">COMBO: <span id="combo">0</span></div>
+        </div>
+        
+        <div class="fretboard" id="fretboard">
+            <div class="line" id="line-0"></div>
+            <div class="line" id="line-1"></div>
+            <div class="line" id="line-2"></div>
+            <div class="line" id="line-3"></div>
+            
+            <div class="hit-zone">
+                <div class="key" data-key="d">D</div>
+                <div class="key" data-key="f">F</div>
+                <div class="key" data-key="j">J</div>
+                <div class="key" data-key="k">K</div>
+            </div>
+        </div>
+
+        <button id="start-btn">DÉMARRER LE RIFF</button>
+    </div>
+
+    <audio id="game-audio" src="World1.wav"></audio>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -181,14 +181,14 @@ window.addEventListener('keyup', e => {
 });
 
 // --- INPUTS TACTILES (MOBILE) ---
-const gameContainer = document.getElementById('game-container');
+const fretboardEl = document.getElementById('fretboard');
 
-gameContainer.addEventListener('touchstart', e => {
+fretboardEl.addEventListener('touchstart', e => {
     e.preventDefault();
     
     // Trouve quelle colonne a été touchée
     const touch = e.touches[0];
-    const rect = gameContainer.getBoundingClientRect();
+    const rect = fretboardEl.getBoundingClientRect();
     const x = touch.clientX - rect.left;
     const lineWidth = rect.width / 4;
     const lineIndex = Math.floor(x / lineWidth);
@@ -209,7 +209,7 @@ gameContainer.addEventListener('touchstart', e => {
     }
 }, { passive: false });
 
-gameContainer.addEventListener('touchend', e => {
+fretboardEl.addEventListener('touchend', e => {
     e.preventDefault();
     
     // Relâche toutes les touches tactiles
@@ -231,7 +231,7 @@ gameContainer.addEventListener('touchend', e => {
     });
 }, { passive: false });
 
-gameContainer.addEventListener('touchcancel', e => {
+fretboardEl.addEventListener('touchcancel', e => {
     e.preventDefault();
     // Relâche toutes les touches en cas d'annulation
     Object.keys(heldKeys).forEach(key => {

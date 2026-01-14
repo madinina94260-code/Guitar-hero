@@ -134,6 +134,22 @@ function updateAudioStatus() {
 // --- INPUTS CLAVIER ---
 window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
+    
+    // Commandes d'enregistrement (prioritaires)
+    if (key === 'r') { 
+        isRecording = true; 
+        recordedData = []; 
+        startNewGame(true);
+        return; 
+    }
+    if (key === 's' && isRecording) {
+        isRecording = false; 
+        audio.pause();
+        console.log("JSON Nettoyé :", JSON.stringify(cleanBeatmap(recordedData)));
+        return;
+    }
+    
+    // Touches de jeu normales
     if (!(key in keysMap)) return;
     if (heldKeys[key]) return;
 
@@ -145,12 +161,6 @@ window.addEventListener('keydown', e => {
         recordedData.push({ time: Number(audio.currentTime.toFixed(3)), line: lineIndex, startTime: audio.currentTime });
     } else {
         tryHit(lineIndex);
-    }
-
-    if (key === 'r') { isRecording = true; recordedData = []; startNewGame(true); }
-    if (key === 's' && isRecording) {
-        isRecording = false; audio.pause();
-        console.log("JSON Nettoyé :", JSON.stringify(cleanBeatmap(recordedData)));
     }
 });
 
@@ -298,9 +308,25 @@ function tryHit(line) {
 
 function updateScore() {
     combo++;
-    score += 10;
+    
+    // Système de multiplicateur comme Guitar Hero
+    let multiplier = 1;
+    if (combo >= 40) multiplier = 4;
+    else if (combo >= 20) multiplier = 3;
+    else if (combo >= 10) multiplier = 2;
+    
+    score += 10 * multiplier;
     scoreEl.textContent = Math.floor(score);
-    comboEl.textContent = combo;
+    
+    // Affiche le multiplicateur dans le combo
+    if (multiplier > 1) {
+        comboEl.textContent = combo + ' x' + multiplier;
+        comboEl.style.color = multiplier === 4 ? '#ff00ff' : multiplier === 3 ? '#ffaa00' : '#00ff00';
+    } else {
+        comboEl.textContent = combo;
+        comboEl.style.color = '#00ffcc';
+    }
+    
     fretboard.classList.add('shake');
     setTimeout(() => fretboard.classList.remove('shake'), 50);
 }

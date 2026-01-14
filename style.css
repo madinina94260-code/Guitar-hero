@@ -238,3 +238,25 @@ body::after {
     position: relative;
     touch-action: none; /* IMPORTANT : empêche le scroll et active le tactile */
 }
+
+body {
+    background: #000;
+    color: #fff;
+    font-family: 'Arial Black', Gadget, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+    position: relative;
+    touch-action: none;
+    user-select: none; /* Version standard */
+}
+
+.line {
+    flex: 1;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
+    touch-action: manipulation;
+}

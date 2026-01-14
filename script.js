@@ -187,6 +187,7 @@ lines.forEach((lineEl, lineIndex) => {
     
     lineEl.addEventListener('touchstart', e => {
         e.preventDefault();
+        e.stopPropagation();
         if (heldKeys[keyForLine]) return;
         
         heldKeys[keyForLine] = true;
@@ -199,8 +200,9 @@ lines.forEach((lineEl, lineIndex) => {
         }
     }, { passive: false });
     
-    lineEl.addEventListener('touchend', e => {
+    const handleTouchEnd = (e) => {
         e.preventDefault();
+        e.stopPropagation();
         heldKeys[keyForLine] = false;
         visualKeyFeedback(keyForLine, false);
         
@@ -212,7 +214,10 @@ lines.forEach((lineEl, lineIndex) => {
                 delete lastNote.startTime;
             }
         }
-    }, { passive: false });
+    };
+    
+    lineEl.addEventListener('touchend', handleTouchEnd, { passive: false });
+    lineEl.addEventListener('touchcancel', handleTouchEnd, { passive: false }); // Important pour éviter les touches bloquées
 });
 
 function visualKeyFeedback(key, active) {

@@ -181,44 +181,64 @@ window.addEventListener('keyup', e => {
 });
 
 // --- INPUTS TACTILES (MOBILE) ---
-lines.forEach((lineEl, lineIndex) => {
-    // Correspondance entre l'index de ligne et la touche
-    const keyForLine = Object.keys(keysMap).find(k => keysMap[k] === lineIndex);
+const gameContainer = document.getElementById('game-container');
+
+gameContainer.addEventListener('touchstart', e => {
+    e.preventDefault();
     
-    lineEl.addEventListener('touchstart', e => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (heldKeys[keyForLine]) return;
-        
-        heldKeys[keyForLine] = true;
-        visualKeyFeedback(keyForLine, true);
-        
-        if (isRecording) {
-            recordedData.push({ time: Number(audio.currentTime.toFixed(3)), line: lineIndex, startTime: audio.currentTime });
-        } else {
-            tryHit(lineIndex);
-        }
-    }, { passive: false });
+    // Trouve quelle colonne a été touchée
+    const touch = e.touches[0];
+    const rect = gameContainer.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const lineWidth = rect.width / 4;
+    const lineIndex = Math.floor(x / lineWidth);
     
-    const handleTouchEnd = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        heldKeys[keyForLine] = false;
-        visualKeyFeedback(keyForLine, false);
+    if (lineIndex >= 0 && lineIndex < 4) {
+        const keyForLine = Object.keys(keysMap).find(k => keysMap[k] === lineIndex);
         
-        if (isRecording) {
-            let lastNote = recordedData.findLast(n => n.line === lineIndex);
-            if (lastNote && !lastNote.duration) {
-                let duration = audio.currentTime - lastNote.startTime;
-                if (duration > 0.2) lastNote.duration = Number(duration.toFixed(3));
-                delete lastNote.startTime;
+        if (!heldKeys[keyForLine]) {
+            heldKeys[keyForLine] = true;
+            visualKeyFeedback(keyForLine, true);
+            
+            if (isRecording) {
+                recordedData.push({ time: Number(audio.currentTime.toFixed(3)), line: lineIndex, startTime: audio.currentTime });
+            } else {
+                tryHit(lineIndex);
             }
         }
-    };
+    }
+}, { passive: false });
+
+gameContainer.addEventListener('touchend', e => {
+    e.preventDefault();
     
-    lineEl.addEventListener('touchend', handleTouchEnd, { passive: false });
-    lineEl.addEventListener('touchcancel', handleTouchEnd, { passive: false }); // Important pour éviter les touches bloquées
-});
+    // Relâche toutes les touches tactiles
+    Object.keys(heldKeys).forEach(key => {
+        if (heldKeys[key]) {
+            heldKeys[key] = false;
+            visualKeyFeedback(key, false);
+            
+            if (isRecording) {
+                const lineIndex = keysMap[key];
+                let lastNote = recordedData.findLast(n => n.line === lineIndex);
+                if (lastNote && !lastNote.duration) {
+                    let duration = audio.currentTime - lastNote.startTime;
+                    if (duration > 0.2) lastNote.duration = Number(duration.toFixed(3));
+                    delete lastNote.startTime;
+                }
+            }
+        }
+    });
+}, { passive: false });
+
+gameContainer.addEventListener('touchcancel', e => {
+    e.preventDefault();
+    // Relâche toutes les touches en cas d'annulation
+    Object.keys(heldKeys).forEach(key => {
+        heldKeys[key] = false;
+        visualKeyFeedback(key, false);
+    });
+}, { passive: false });
 
 function visualKeyFeedback(key, active) {
     const keyEl = document.querySelector(`.key[data-key="${key}"]`);

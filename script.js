@@ -182,28 +182,35 @@ window.addEventListener('keyup', e => {
 
 // --- INPUTS TACTILES (MOBILE) ---
 const fretboardEl = document.getElementById('fretboard');
+const activeTouches = new Map(); // Suivi des doigts actifs
 
 fretboardEl.addEventListener('touchstart', e => {
     e.preventDefault();
     
-    // Trouve quelle colonne a été touchée
-    const touch = e.touches[0];
     const rect = fretboardEl.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
     const lineWidth = rect.width / 4;
-    const lineIndex = Math.floor(x / lineWidth);
     
-    if (lineIndex >= 0 && lineIndex < 4) {
-        const keyForLine = Object.keys(keysMap).find(k => keysMap[k] === lineIndex);
+    // Traite TOUS les nouveaux doigts
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        const x = touch.clientX - rect.left;
+        const lineIndex = Math.floor(x / lineWidth);
         
-        if (!heldKeys[keyForLine]) {
-            heldKeys[keyForLine] = true;
-            visualKeyFeedback(keyForLine, true);
+        if (lineIndex >= 0 && lineIndex < 4) {
+            const keyForLine = Object.keys(keysMap).find(k => keysMap[k] === lineIndex);
             
-            if (isRecording) {
-                recordedData.push({ time: Number(audio.currentTime.toFixed(3)), line: lineIndex, startTime: audio.currentTime });
-            } else {
-                tryHit(lineIndex);
+            // Enregistre le touch ID avec sa ligne
+            activeTouches.set(touch.identifier, lineIndex);
+            
+            if (!heldKeys[keyForLine]) {
+                heldKeys[keyForLine] = true;
+                visualKeyFeedback(keyForLine, true);
+                
+                if (isRecording) {
+                    recordedData.push({ time: Number(audio.currentTime.toFixed(3)), line: lineIndex, startTime: audio.currentTime });
+                } else {
+                    tryHit(lineIndex);
+                }
             }
         }
     }
@@ -212,14 +219,18 @@ fretboardEl.addEventListener('touchstart', e => {
 fretboardEl.addEventListener('touchend', e => {
     e.preventDefault();
     
-    // Relâche toutes les touches tactiles
-    Object.keys(heldKeys).forEach(key => {
-        if (heldKeys[key]) {
-            heldKeys[key] = false;
-            visualKeyFeedback(key, false);
+    // Relâche uniquement les doigts qui ont été levés
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        const lineIndex = activeTouches.get(touch.identifier);
+        
+        if (lineIndex !== undefined) {
+            const keyForLine = Object.keys(keysMap).find(k => keysMap[k] === lineIndex);
+            
+            heldKeys[keyForLine] = false;
+            visualKeyFeedback(keyForLine, false);
             
             if (isRecording) {
-                const lineIndex = keysMap[key];
                 let lastNote = recordedData.findLast(n => n.line === lineIndex);
                 if (lastNote && !lastNote.duration) {
                     let duration = audio.currentTime - lastNote.startTime;
@@ -227,17 +238,26 @@ fretboardEl.addEventListener('touchend', e => {
                     delete lastNote.startTime;
                 }
             }
+            
+            activeTouches.delete(touch.identifier);
         }
-    });
+    }
 }, { passive: false });
 
 fretboardEl.addEventListener('touchcancel', e => {
     e.preventDefault();
-    // Relâche toutes les touches en cas d'annulation
-    Object.keys(heldKeys).forEach(key => {
-        heldKeys[key] = false;
-        visualKeyFeedback(key, false);
-    });
+    // Relâche tous les doigts annulés
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        const lineIndex = activeTouches.get(touch.identifier);
+        
+        if (lineIndex !== undefined) {
+            const keyForLine = Object.keys(keysMap).find(k => keysMap[k] === lineIndex);
+            heldKeys[keyForLine] = false;
+            visualKeyFeedback(keyForLine, false);
+            activeTouches.delete(touch.identifier);
+        }
+    }
 }, { passive: false });
 
 function visualKeyFeedback(key, active) {

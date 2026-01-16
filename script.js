@@ -35,22 +35,18 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playMissSound() {
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
-    // On utilise deux oscillateurs pour un son plus riche et fort
     const osc1 = audioCtx.createOscillator();
     const osc2 = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
-    // Oscillateur 1 : Grincement aigu
     osc1.type = 'sawtooth';
     osc1.frequency.setValueAtTime(150, audioCtx.currentTime);
     osc1.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
 
-    // Oscillateur 2 : Impact grave (donne du "corps" au son)
     osc2.type = 'square';
     osc2.frequency.setValueAtTime(80, audioCtx.currentTime);
     osc2.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.3);
 
-    // Volume Boosté (0.4 au lieu de 0.15)
     gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
 
@@ -135,7 +131,6 @@ function updateAudioStatus() {
 window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
     
-    // Commandes d'enregistrement (prioritaires)
     if (key === 'r') { 
         isRecording = true; 
         recordedData = []; 
@@ -149,18 +144,16 @@ window.addEventListener('keydown', e => {
         return;
     }
     
-    // Touches de jeu normales
     if (!(key in keysMap)) return;
     if (heldKeys[key]) return;
 
     heldKeys[key] = true;
-    const lineIndex = keysMap[key];
     visualKeyFeedback(key, true);
 
     if (isRecording) {
-        recordedData.push({ time: Number(audio.currentTime.toFixed(3)), line: lineIndex, startTime: audio.currentTime });
+        recordedData.push({ time: Number(audio.currentTime.toFixed(3)), line: keysMap[key], startTime: audio.currentTime });
     } else {
-        tryHit(lineIndex);
+        tryHit(keysMap[key]);
     }
 });
 
@@ -180,9 +173,19 @@ window.addEventListener('keyup', e => {
     }
 });
 
-// --- INPUTS TACTILES (MOBILE) ---
+// --- INPUTS TACTILES (MOBILE) - VERSION CORRIGÉE ---
 const fretboardEl = document.getElementById('fretboard');
-const activeTouches = new Map(); // Suivi des doigts actifs
+const activeTouches = new Map();
+
+function clearAllTouches() {
+    activeTouches.clear();
+    Object.keys(heldKeys).forEach(key => {
+        if (heldKeys[key]) {
+            heldKeys[key] = false;
+            visualKeyFeedback(key, false);
+        }
+    });
+}
 
 fretboardEl.addEventListener('touchstart', e => {
     e.preventDefault();
@@ -190,7 +193,6 @@ fretboardEl.addEventListener('touchstart', e => {
     const rect = fretboardEl.getBoundingClientRect();
     const lineWidth = rect.width / 4;
     
-    // Traite TOUS les nouveaux doigts
     for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i];
         const x = touch.clientX - rect.left;
@@ -199,7 +201,13 @@ fretboardEl.addEventListener('touchstart', e => {
         if (lineIndex >= 0 && lineIndex < 4) {
             const keyForLine = Object.keys(keysMap).find(k => keysMap[k] === lineIndex);
             
-            // Enregistre le touch ID avec sa ligne
+            const oldLineIndex = activeTouches.get(touch.identifier);
+            if (oldLineIndex !== undefined && oldLineIndex !== lineIndex) {
+                const oldKey = Object.keys(keysMap).find(k => keysMap[k] === oldLineIndex);
+                heldKeys[oldKey] = false;
+                visualKeyFeedback(oldKey, false);
+            }
+            
             activeTouches.set(touch.identifier, lineIndex);
             
             if (!heldKeys[keyForLine]) {
@@ -216,10 +224,57 @@ fretboardEl.addEventListener('touchstart', e => {
     }
 }, { passive: false });
 
+fretboardEl.addEventListener('touchmove', e => {
+    e.preventDefault();
+    
+    const rect = fretboardEl.getBoundingClientRect();
+    const lineWidth = rect.width / 4;
+    
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        const x = touch.clientX - rect.left;
+        const newLineIndex = Math.floor(x / lineWidth);
+        const oldLineIndex = activeTouches.get(touch.identifier);
+        
+        if (oldLineIndex !== undefined && (newLineIndex < 0 || newLineIndex > 3 || newLineIndex !== oldLineIndex)) {
+            const oldKey = Object.keys(keysMap).find(k => keysMap[k] === oldLineIndex);
+            
+            heldKeys[oldKey] = false;
+            visualKeyFeedback(oldKey, false);
+            
+            if (isRecording) {
+                let lastNote = recordedData.findLast(n => n.line === oldLineIndex);
+                if (lastNote && !lastNote.duration) {
+                    let duration = audio.currentTime - lastNote.startTime;
+                    if (duration > 0.2) lastNote.duration = Number(duration.toFixed(3));
+                    delete lastNote.startTime;
+                }
+            }
+            
+            if (newLineIndex >= 0 && newLineIndex < 4) {
+                activeTouches.set(touch.identifier, newLineIndex);
+                const newKey = Object.keys(keysMap).find(k => keysMap[k] === newLineIndex);
+                
+                if (!heldKeys[newKey]) {
+                    heldKeys[newKey] = true;
+                    visualKeyFeedback(newKey, true);
+                    
+                    if (isRecording) {
+                        recordedData.push({ time: Number(audio.currentTime.toFixed(3)), line: newLineIndex, startTime: audio.currentTime });
+                    } else {
+                        tryHit(newLineIndex);
+                    }
+                }
+            } else {
+                activeTouches.delete(touch.identifier);
+            }
+        }
+    }
+}, { passive: false });
+
 fretboardEl.addEventListener('touchend', e => {
     e.preventDefault();
     
-    // Relâche uniquement les doigts qui ont été levés
     for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i];
         const lineIndex = activeTouches.get(touch.identifier);
@@ -242,11 +297,14 @@ fretboardEl.addEventListener('touchend', e => {
             activeTouches.delete(touch.identifier);
         }
     }
+    
+    if (activeTouches.size === 0) {
+        clearAllTouches();
+    }
 }, { passive: false });
 
 fretboardEl.addEventListener('touchcancel', e => {
     e.preventDefault();
-    // Relâche tous les doigts annulés
     for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i];
         const lineIndex = activeTouches.get(touch.identifier);
@@ -258,12 +316,18 @@ fretboardEl.addEventListener('touchcancel', e => {
             activeTouches.delete(touch.identifier);
         }
     }
+    
+    if (activeTouches.size === 0) {
+        clearAllTouches();
+    }
 }, { passive: false });
 
 function visualKeyFeedback(key, active) {
     const keyEl = document.querySelector(`.key[data-key="${key}"]`);
-    if (active) keyEl.classList.add('active');
-    else keyEl.classList.remove('active');
+    if (keyEl) {
+        if (active) keyEl.classList.add('active');
+        else keyEl.classList.remove('active');
+    }
 }
 
 // --- BOUCLE DE JEU ---
@@ -354,7 +418,6 @@ function tryHit(line) {
 function updateScore() {
     combo++;
     
-    // Système de multiplicateur comme Guitar Hero
     let multiplier = 1;
     if (combo >= 40) multiplier = 4;
     else if (combo >= 20) multiplier = 3;
@@ -363,7 +426,6 @@ function updateScore() {
     score += 10 * multiplier;
     scoreEl.textContent = Math.floor(score);
     
-    // Affiche le multiplicateur dans le combo
     if (multiplier > 1) {
         comboEl.textContent = combo + ' x' + multiplier;
         comboEl.style.color = multiplier === 4 ? '#ff00ff' : multiplier === 3 ? '#ffaa00' : '#00ff00';
